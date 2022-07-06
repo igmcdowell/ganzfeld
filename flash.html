@@ -1,0 +1,249 @@
+<html>
+  <head>
+    <style>
+      body {
+        position: relative;
+        display: flex;
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      table {
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      td {
+        border: 1px solid #ccc;
+        padding: 2px 5px;
+        text-align: center;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+      }
+      form {
+        background: white;
+        position: absolute;
+        border: 1px solid #ccc;
+        padding: 5px 10px;
+        top: 10px;
+        left: 10px;
+        border-radius: 4px;
+        box-shadow: 2px 2px 4px #bbb;
+      }
+      form div {
+        padding: 5px 0;
+        display: flex;
+        align-items:center;
+      }
+      form label {
+        margin-right: 10px;
+      }
+      #rateOutput {
+        min-width: 4em;
+      }
+      #color {
+        margin-right: 5px;
+      }
+      #startHolder {
+        display: flex;
+        justify-content: center;
+      }
+      #about {
+        flex-direction: column;
+        align-items: flex-start;
+        font-size: 80%;
+      }
+      #about a {
+        text-decoration: none;
+      }
+      #shortcuts {
+        display: none;
+      }
+      #shortcuts h2 {
+        margin: 5px 5px 10px 5px;
+      }
+
+      .modal {
+        z-index: 1;
+        height: 100vh;
+        width: 100vw;
+        background: rgba(0,0,0,.5);
+        position: absolute;
+        padding: 10px;
+        display:flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-content {
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 2px 2px 4px #bbb;
+        padding: 10px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body id="root">
+    <div id="warning" class="modal">
+      <div id="warning-content" class="modal-content">
+        <h2>WARNING: MAY INDUCE SEIZURES</h2>
+        <p>This page flashes at a rate that may produce seizures in people with epillepsy.</p>
+        <p>If you are photosensitive or believe you may be photosensitive, please leave this page.</p>
+        <button id="acceptWarning">I Understand</button>
+      </div>
+    </div>
+    <div id="shortcuts" class="modal">
+      <div class="modal-content">
+        <h2>Keyboard Shortcuts</h2>
+        <table>
+          <tr><td><strong>></strong></td><td>Speed up</td></tr>
+          <tr><td><strong>></strong></td><td>Slow down</td></tr>
+          <tr><td><strong>`</strong></td><td>Toggle Control Visibility</td></tr>
+          <tr><td><strong>space</strong></td><td>Start/Stop</td></tr>
+        </table>
+        <button id="shortcutsDone">Done</button>
+      </div>
+    </div>
+    <canvas id="colorField"></canvas>
+    <form id="controls">
+      <div><label>Speed </label><input id="rate" type="range" min="5" max="15" value="7.5" step=".1"/><span id="rateOutput">7.5 hz</span></div>
+      <div><label>Colors </label><input type="color" id="color" value="#ff0000"/><input type="color" id="color2" value="#000000"/></div>
+      <div id="startHolder"><button id="start">Start Flicker</button></div>
+      <div id="about">
+        <a href="javascript:;" id="showShortcuts">Shortcuts</a>
+      </div>
+    </form>
+    
+    <script>
+      'use strict';
+      // Use IIFE because namespace.
+      (() => {
+
+      // modal show/hide logic
+
+      document.getElementById("acceptWarning").onclick = () => document.getElementById("warning").style.display = 'none';
+
+      document.getElementById("shortcutsDone").onclick = () => document.getElementById("shortcuts").style.display = 'none';
+      document.getElementById("showShortcuts").onclick = () => document.getElementById("shortcuts").style.display = 'inherit';
+
+      // Element refs
+
+      const rateOutput = document.getElementById("rateOutput");
+      const rateControl = document.getElementById("rate");      
+      let rate = rateControl.value;
+
+      const canvas = document.getElementById("colorField")
+      const canvasContext = canvas.getContext("2d");
+      const colorControl = document.getElementById("color");
+      const color2Control = document.getElementById("color2");
+      let color = colorControl.value;
+      let color2 = color2Control.value;
+
+      const startButton = document.getElementById("start");
+      const body = document.getElementById("root");
+      const controls = document.getElementById("controls");
+
+      // Flickering logic
+      let flickerLoop = 0;
+      let isDark = false;
+
+      const setCanvasColor = (color) => {
+        canvasContext.fillStyle = color;
+        canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+      };
+
+      const startFlickering = () => {
+        startButton.innerText = 'Stop Flicker';
+        clearInterval(flickerLoop);
+        flickerLoop = setInterval(()=>{
+          isDark = !isDark;
+          setCanvasColor(isDark ? color2 : color);
+        }, 1000/(rate*2));
+      };
+
+      const stopFlickering = () => {
+        startButton.innerText = 'Start Flicker';
+        clearInterval(flickerLoop);
+        flickerLoop = 0;
+        setCanvasColor(color);
+      };
+      const toggleFlickering = () => flickerLoop ? stopFlickering() : startFlickering();
+
+      // Form control logic
+
+      const toggleControls = () => {
+        controls.hidden = !controls.hidden;
+      }
+
+      const maxRate = rateControl.max;
+      const minRate = rateControl.min;
+      const rateStep = (maxRate - minRate) / 10;
+      const setRate = (newRate) => {
+        rate = Math.min(Math.max(newRate, minRate), maxRate);
+        rateOutput.innerText = Math.round(10*rate)/10 + ' hz';
+        rateControl.value = rate;
+        if (flickerLoop) startFlickering();
+      }
+
+      const setFullscreen = () => {
+        document.documentElement.requestFullscreen();
+      }
+
+      // Form event handlers
+
+      rateControl.oninput = () => {
+        rate = rateControl.value;
+        setRate(rate);
+      };
+
+      colorControl.oninput = () => {
+        color = colorControl.value;
+        setCanvasColor(color);
+      };
+
+      color2Control.oninput = () => {
+        color2 = color2Control.value;
+        setCanvasColor(color2);
+      };
+
+      startButton.onclick = (evt) => {
+        evt.preventDefault();
+        toggleFlickering();
+      };
+
+      // Keyboard event handlers
+
+      // Note: use keydown for quick response/ability to repeat when held.
+      body.addEventListener("keydown", (evt) => {
+        switch (evt.code) {
+          case 'Escape': 
+            stopFlickering()
+            break;
+          case 'Period':
+            if (evt.shiftKey) setRate(rate + rateStep);
+            break;
+          case 'Comma':
+            if (evt.shiftKey) setRate(rate - rateStep);
+            break;
+        }
+      });
+
+      // Note: use keyup for events where we don't want to repeat when held.
+      body.addEventListener("keyup", (evt) => {
+        switch (evt.code) {
+          case 'Space':
+            toggleFlickering();
+            evt.preventDefault();
+            break;
+          case 'Backquote':
+            toggleControls();
+            break;
+        } 
+      });
+
+      setCanvasColor(color); 
+      })()  
+    </script>
+  </body>
+</html>
