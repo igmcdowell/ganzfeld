@@ -209,6 +209,7 @@
 
       startButton.onclick = (evt) => {
         evt.preventDefault();
+        if (!flickerLoop) document.documentElement.requestFullscreen();
         toggleFlickering();
       };
 
